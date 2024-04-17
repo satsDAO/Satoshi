@@ -113,16 +113,6 @@ describe('[SecurityChecks]', () => {
       expect(await SATS.totalSupply()).to.be.eq(0n)
       expect(await SATS.totalAssets()).to.be.eq(0n)
       expect(await tBTC.balanceOf(SATS.target)).to.be.eq(inflatedAmount)
-
-      // any user can sweep the additional tBTC
-      const netFlow = await SATS.netFlow()
-      const tBTCBalance = await tBTC.balanceOf(SATS.target)
-      const additionalAmount = tBTCBalance - netFlow
-      expect(additionalAmount).to.be.eq(inflatedAmount)
-      await SATS.connect(user).sweep(additionalAmount, user.address)
-      expect(await tBTC.balanceOf(user.address)).to.be.eq(
-        tBTCBalanceUser + additionalAmount
-      )
     })
 
     // Example 2 from https://mixbytes.io/blog/overview-of-the-inflation-attack
@@ -183,47 +173,6 @@ describe('[SecurityChecks]', () => {
         hacker.address
       )
       expect(request).to.be.rejectedWith('ZERO_ASSETS')
-    })
-
-    it('sweep', async () => {
-      const amountInUser = parseUnits('0.5', 18)
-      await tBTC.connect(user).approve(SATS.target, amountInUser)
-      await SATS.connect(user).deposit(amountInUser, user.address)
-
-      let request = SATS.connect(user).sweep(amountInUser, user.address)
-      await expect(request).to.be.revertedWith('invalid sweep')
-
-      const inflatedAmount = parseUnits('1', 18)
-      await tBTC.connect(hacker).transfer(SATS.target, inflatedAmount)
-
-      // any user can sweep the additional tBTC
-      const netFlow = await SATS.netFlow()
-      const tBTCBalance = await tBTC.balanceOf(SATS.target)
-      const additionalAmount = tBTCBalance - netFlow
-
-      // user can only sweep the additional amount
-      request = SATS.connect(user).sweep(additionalAmount + 1n, user.address)
-      await expect(request).to.be.revertedWith('invalid sweep')
-
-      // user can only sweep the additional amount
-      const vaultBalance = await tBTC.balanceOf(SATS.target)
-      request = SATS.connect(user).sweep(vaultBalance + 1n, user.address)
-      await expect(request).to.be.reverted
-
-      expect(additionalAmount).to.be.eq(inflatedAmount)
-      await SATS.connect(user).sweep(additionalAmount, user.address)
-      expect(await tBTC.balanceOf(user.address)).to.be.eq(additionalAmount)
-
-      // user withdraws all shares
-      const satsAmountUser = await SATS.balanceOf(user.address)
-      await SATS.connect(user).redeem(
-        satsAmountUser,
-        user.address,
-        user.address
-      )
-      expect(await tBTC.balanceOf(user.address)).to.be.eq(
-        amountInUser + additionalAmount
-      )
     })
   })
 })

@@ -50,8 +50,18 @@ contract Satoshi is ReentrancyGuard, ERC4626 {
   using FixedPointMathLib for uint256;
   using SafeTransferLib for ERC20;
 
+  error InvalidAddress();
+
   /// @notice The net flow of tBTC tokens within the contract.
   uint256 public netFlow;
+
+  uint256 public constant SAT = 1e8;
+  uint256 public constant WAD = 1e18;
+
+  modifier validAddress(address _address) {
+    _validAddress(_address);
+    _;
+  }
 
   /// @dev Initializes the Satoshi vault contract with tBTC as the underlying asset.
   /// @param _tBTC The ERC20 token address of tBTC to be used as the underlying asset.
@@ -77,7 +87,13 @@ contract Satoshi is ReentrancyGuard, ERC4626 {
   function deposit(
     uint256 assets,
     address receiver
-  ) public override nonReentrant returns (uint256 shares) {
+  )
+    public
+    override
+    nonReentrant
+    validAddress(receiver)
+    returns (uint256 shares)
+  {
     return super.deposit(assets, receiver);
   }
 
@@ -89,7 +105,14 @@ contract Satoshi is ReentrancyGuard, ERC4626 {
   function mint(
     uint256 shares,
     address receiver
-  ) public override nonReentrant returns (uint256 assets) {
+  )
+    public
+    override
+    nonReentrant
+    validAddress(receiver)
+    returns (uint256 assets)
+  {
+    shares = (shares / SAT) * SAT; // Round down to the nearest 1e8 SATS.
     return super.mint(shares, receiver);
   }
 
@@ -103,7 +126,13 @@ contract Satoshi is ReentrancyGuard, ERC4626 {
     uint256 assets,
     address receiver,
     address owner
-  ) public override nonReentrant returns (uint256 shares) {
+  )
+    public
+    override
+    nonReentrant
+    validAddress(receiver)
+    returns (uint256 shares)
+  {
     return super.withdraw(assets, receiver, owner);
   }
 
@@ -117,7 +146,14 @@ contract Satoshi is ReentrancyGuard, ERC4626 {
     uint256 shares,
     address receiver,
     address owner
-  ) public override nonReentrant returns (uint256 assets) {
+  )
+    public
+    override
+    nonReentrant
+    validAddress(receiver)
+    returns (uint256 assets)
+  {
+    shares = (shares / SAT) * SAT; // Round down to the nearest 1e8 SATS.
     return super.redeem(shares, receiver, owner);
   }
 
@@ -130,7 +166,7 @@ contract Satoshi is ReentrancyGuard, ERC4626 {
   ) public view override returns (uint256) {
     uint256 supply = totalSupply; // Optimization to save gas.
     return
-      supply == 0 ? assets * 1e8 : assets.mulDivDown(supply, totalAssets());
+      supply == 0 ? assets * SAT : assets.mulDivDown(supply, totalAssets());
   }
 
   /// @notice Converts a specific amount of shares to its equivalent amount in tBTC.
@@ -140,9 +176,10 @@ contract Satoshi is ReentrancyGuard, ERC4626 {
   function convertToAssets(
     uint256 shares
   ) public view override returns (uint256) {
+    shares = (shares / SAT) * SAT; // Round down to the nearest 1e8 SATS.
     uint256 supply = totalSupply; // Optimization to save gas.
     return
-      supply == 0 ? shares / 1e8 : shares.mulDivDown(totalAssets(), supply);
+      supply == 0 ? shares / SAT : shares.mulDivDown(totalAssets(), supply);
   }
 
   /// @notice Calculates the amount of tBTC that would be obtained by minting a specific amount of shares.
@@ -150,8 +187,9 @@ contract Satoshi is ReentrancyGuard, ERC4626 {
   /// @param shares The amount of shares to be minted.
   /// @return The equivalent amount of tBTC that would be obtained.
   function previewMint(uint256 shares) public view override returns (uint256) {
+    shares = (shares / SAT) * SAT; // Round down to the nearest 1e8 SATS.
     uint256 supply = totalSupply; // Optimization to save gas.
-    return supply == 0 ? shares / 1e8 : shares.mulDivUp(totalAssets(), supply);
+    return supply == 0 ? shares / SAT : shares.mulDivUp(totalAssets(), supply);
   }
 
   /// @notice Calculates the amount of shares that would be needed to withdraw a specific amount of tBTC.
@@ -162,7 +200,7 @@ contract Satoshi is ReentrancyGuard, ERC4626 {
     uint256 assets
   ) public view override returns (uint256) {
     uint256 supply = totalSupply; // Optimization to save gas.
-    return supply == 0 ? assets * 1e8 : assets.mulDivUp(supply, totalAssets());
+    return supply == 0 ? assets * SAT : assets.mulDivUp(supply, totalAssets());
   }
 
   /// @dev Adjusts the netFlow variable upon withdrawal.
@@ -180,18 +218,10 @@ contract Satoshi is ReentrancyGuard, ERC4626 {
   /// @notice Returns the current price per share in terms of tBTC.
   /// @return The price of one vault share in tBTC.
   function pricePerShare() public view returns (uint256) {
-    return convertToAssets(1e18);
+    return convertToAssets(WAD);
   }
 
-  /// @notice Allows the sweeping of accidental tBTC deposits to the contract.
-  /// @dev Ensures the sweep does not affect the net balance required for existing deposits.
-  /// @param _amount The amount of tBTC to sweep.
-  /// @param _to The address to which the swept tBTC will be sent.
-  function sweep(uint256 _amount, address _to) external nonReentrant {
-    require(
-      asset.balanceOf(address(this)) - _amount >= netFlow,
-      'invalid sweep'
-    );
-    asset.safeTransfer(_to, _amount);
+  function _validAddress(address _address) internal pure {
+    if (_address == address(0)) revert InvalidAddress();
   }
 }
