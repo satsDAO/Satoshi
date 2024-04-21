@@ -31,7 +31,7 @@ npx hardhat test test/Satoshi.spec.js
 
 **Quick Start**:
 
-1. **Add SATS**: Use our contract address (TBA) to add SATS to your favorite Ethereum wallet.
+1. **Add SATS**: Use our contract address (0x9d36f8f62347538440a212e9162f534f797542df) to add SATS to your favorite Ethereum wallet. (Mainnet, Sepolia, Optimism, Base, Arbitrum & Polygon)
 2. **Engage**: Transfer, stake, or use SATS in DeFi applications directly or through smart contracts.
 3. **Explore**: Dive into our codebase, propose improvements, or build on top of SATS to create innovative applications.
 
